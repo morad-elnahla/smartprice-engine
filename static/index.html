@@ -319,14 +319,14 @@
   .result-main {
     opacity: 0;
     visibility: hidden;
-    transform: scale(0.95);
+    transform: translateY(10px);
+    transition: all 0.3s ease;
   }
 
   .result-main.visible {
     opacity: 1;
     visibility: visible;
-    transform: scale(1);
-    transition: all 0.3s ease;
+    transform: translateY(0);
   }
 
   @keyframes popIn {
@@ -596,7 +596,7 @@
       </div>
 
       <button class="btn-predict" id="predict-btn" onclick="predict()">
-        ⚡ Calculate Optimal Price
+  ⚡ Calculate Optimal Price
       </button>
       <div class="error-msg" id="error-msg"></div>
     </div>
@@ -678,25 +678,23 @@
 
 <script>
   // ── Slider helper ────────────────────────────────────────────────────────────
+
   function updateSlider(el, valId, factor = 1) {
     const val = parseFloat(el.value) * factor;
     document.getElementById(valId).textContent =
       factor < 1 ? val.toFixed(1) : val;
 
-    // Update fill gradient
     const pct = ((el.value - el.min) / (el.max - el.min)) * 100;
     el.style.background =
       `linear-gradient(to right, var(--accent) ${pct}%, var(--border) ${pct}%)`;
   }
 
-  // Initialize sliders on load
   document.querySelectorAll('input[type=range]').forEach(el => {
     const pct = ((el.value - el.min) / (el.max - el.min)) * 100;
     el.style.background =
       `linear-gradient(to right, var(--accent) ${pct}%, var(--border) ${pct}%)`;
   });
 
-  // ── Counter animation ────────────────────────────────────────────────────────
   function animateCount(el, target, duration = 800) {
     const start = performance.now();
     const from  = parseFloat(el.textContent) || 0;
@@ -709,47 +707,46 @@
     requestAnimationFrame(frame);
   }
 
-  // ── Predict ──────────────────────────────────────────────────────────────────
   async function predict() {
     const btn = document.getElementById('predict-btn');
     const errEl = document.getElementById('error-msg');
+
     errEl.classList.remove('visible');
 
     btn.classList.add('loading');
-    btn.textContent = '  Calculating...';
+    btn.textContent = 'Calculating...';
 
     const payload = {
-      number_of_riders: Number(document.getElementById('riders').value || 50),
-      number_of_drivers: Number(document.getElementById('drivers').value || 30),
-      number_of_past_rides: Number(document.getElementById('past_rides').value || 15),
+      number_of_riders: Number(document.getElementById('riders').value),
+      number_of_drivers: Number(document.getElementById('drivers').value),
+      number_of_past_rides: Number(document.getElementById('past_rides').value),
 
       average_ratings: Math.max(1, Math.min(5,
-        Number(document.getElementById('rating').value || 45) / 10
+        Number(document.getElementById('rating').value) / 10
       )),
 
-      expected_ride_duration: Number(document.getElementById('duration').value || 60),
+      expected_ride_duration: Number(document.getElementById('duration').value),
 
-      location_category: document.getElementById('location').value || "Urban",
-      customer_loyalty_status: document.getElementById('loyalty').value || "Regular",
-      vehicle_type: document.getElementById('vehicle').value || "Economy",
-      time_of_booking: document.getElementById('time_booking').value || "Morning",
+      location_category: document.getElementById('location').value,
+      customer_loyalty_status: document.getElementById('loyalty').value,
+      vehicle_type: document.getElementById('vehicle').value,
+      time_of_booking: document.getElementById('time_booking').value,
 
-      min_price: 10.0,
-      max_price: 600.0,
+      min_price: 10,
+      max_price: 600,
       competitor_price: 0
-};
+    };
 
     try {
-      const res  = await fetch('/predict', {
-
+      const res = await fetch('/predict', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
+        body: JSON.stringify(payload)
       });
 
       if (!res.ok) {
         const err = await res.json();
-        throw new Error(err.detail || 'Prediction failed');
+        throw new Error(err.detail?.[0]?.msg || 'API Error');
       }
 
       const data = await res.json();
@@ -764,43 +761,42 @@
     }
   }
 
-  // ── Render result ────────────────────────────────────────────────────────────
   function renderResult(data) {
-  document.getElementById('result-empty').style.display = 'none';
-  const main = document.getElementById('result-main');
-  main.classList.remove('visible');
-  void main.offsetWidth;
-  main.classList.add('visible');
+    document.getElementById('result-empty').style.display = 'none';
 
-  // Price
-  const priceEl = document.getElementById('price-num');
-  animateCount(priceEl, data.optimal_price);
+    const main = document.getElementById('result-main');
+    main.classList.add('visible'); // ❌ شيلنا remove + reflow
 
-  // Badge
-  const badge = document.getElementById('level-badge');
-  const ratio = data.demand_supply_ratio;
-  let txt, cls;
-  if (ratio > 2.5)      { txt = 'High Demand 🔥'; cls = 'level-high'; }
-  else if (ratio > 1.2) { txt = 'Normal ✓';       cls = 'level-normal'; }
-  else                  { txt = 'Low Demand ↓';   cls = 'level-low'; }
-  badge.textContent = txt;
-  badge.className   = 'price-level-badge ' + cls;
+    animateCount(document.getElementById('price-num'), data.optimal_price);
 
-  // Stats
-  document.getElementById('stat-ratio').textContent = data.demand_supply_ratio.toFixed(2);
-  document.getElementById('stat-conf').textContent  = data.uplift_pct + '%';
-  document.getElementById('stat-level').textContent = data.estimated_demand.toFixed(0);
+    const badge = document.getElementById('level-badge');
+    const ratio = data.demand_supply_ratio;
 
-  // Meter
-  const pct = Math.min(ratio / 3 * 100, 100).toFixed(0);
-  document.getElementById('meter-pct').textContent = pct + '%';
-  setTimeout(() => {
-    document.getElementById('meter-fill').style.width = pct + '%';
-  }, 100);
+    let txt, cls;
+    if (ratio > 2.5) {
+      txt = 'High Demand 🔥'; cls = 'level-high';
+    } else if (ratio > 1.2) {
+      txt = 'Normal ✓'; cls = 'level-normal';
+    } else {
+      txt = 'Low Demand ↓'; cls = 'level-low';
+    }
 
-  // Breakdown
-  document.getElementById('b-base').textContent   = '$' + data.naive_price.toFixed(2);
-  document.getElementById('b-demand').textContent = '+$' + data.revenue_uplift.toFixed(2);
-  document.getElementById('b-loyalty').textContent = data.uplift_pct + '% uplift';
-}
-</script>
+    badge.textContent = txt;
+    badge.className = 'price-level-badge ' + cls;
+
+    document.getElementById('stat-ratio').textContent = ratio.toFixed(2);
+    document.getElementById('stat-conf').textContent = data.uplift_pct + '%';
+    document.getElementById('stat-level').textContent = data.estimated_demand.toFixed(0);
+
+    const pct = Math.min(ratio / 3 * 100, 100).toFixed(0);
+    document.getElementById('meter-pct').textContent = pct + '%';
+
+    setTimeout(() => {
+      document.getElementById('meter-fill').style.width = pct + '%';
+    }, 100);
+
+    document.getElementById('b-base').textContent = '$' + data.naive_price.toFixed(2);
+    document.getElementById('b-demand').textContent = '+$' + data.revenue_uplift.toFixed(2);
+    document.getElementById('b-loyalty').textContent = data.uplift_pct + '% uplift';
+  }
+  </script>
