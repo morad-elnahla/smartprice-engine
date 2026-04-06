@@ -1,0 +1,10 @@
+__pycache__
+*.pyc
+*.pyo
+.env
+.git
+.gitignore
+*.ipynb_checkpoints
+notebooks/
+README.md
+.DS_Store

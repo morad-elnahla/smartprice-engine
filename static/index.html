@@ -1,0 +1,796 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>SmartPrice Engine</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet" />
+<style>
+  /* ── Reset & Base ─────────────────────────────────────────────────── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:        #08090d;
+    --surface:   #0f1117;
+    --border:    rgba(255,255,255,0.07);
+    --accent:    #00e5a0;
+    --accent2:   #005eff;
+    --warn:      #ff6b35;
+    --text:      #e8eaf0;
+    --muted:     #555b6e;
+    --card-bg:   rgba(255,255,255,0.03);
+    --glow:      0 0 40px rgba(0,229,160,0.15);
+    --font-head: 'Syne', sans-serif;
+    --font-mono: 'DM Mono', monospace;
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-mono);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── Noise texture overlay ─────────────────────────────────────────── */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ── Grid lines bg ─────────────────────────────────────────────────── */
+  body::after {
+    content: '';
+    position: fixed; inset: 0;
+    background-image:
+      linear-gradient(rgba(0,229,160,0.025) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,229,160,0.025) 1px, transparent 1px);
+    background-size: 60px 60px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ── Orbs ──────────────────────────────────────────────────────────── */
+  .orb {
+    position: fixed;
+    border-radius: 50%;
+    filter: blur(120px);
+    pointer-events: none;
+    z-index: 0;
+    animation: drift 12s ease-in-out infinite alternate;
+  }
+  .orb-1 { width:500px;height:500px;background:rgba(0,229,160,0.06);top:-100px;left:-100px; }
+  .orb-2 { width:400px;height:400px;background:rgba(0,94,255,0.07);bottom:-80px;right:-80px;animation-delay:-6s; }
+  @keyframes drift { from{transform:translate(0,0)} to{transform:translate(30px,20px)} }
+
+  /* ── Layout ────────────────────────────────────────────────────────── */
+  .wrapper {
+    position: relative; z-index: 1;
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 0 24px 80px;
+  }
+
+  /* ── Header ────────────────────────────────────────────────────────── */
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 32px 0 48px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 56px;
+    animation: fadeDown 0.6s ease both;
+  }
+
+  .logo {
+    display: flex; align-items: center; gap: 12px;
+    font-family: var(--font-head);
+    font-size: 1.3rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+  }
+  .logo-icon {
+    width: 36px; height: 36px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border-radius: 8px;
+    display: grid; place-items: center;
+    font-size: 1rem;
+  }
+  .logo-dot { color: var(--accent); }
+
+  .badge {
+    font-size: 0.68rem;
+    padding: 4px 10px;
+    border: 1px solid var(--border);
+    border-radius: 100px;
+    color: var(--muted);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  /* ── Hero ──────────────────────────────────────────────────────────── */
+  .hero {
+    text-align: center;
+    margin-bottom: 64px;
+    animation: fadeUp 0.7s ease 0.1s both;
+  }
+  .hero-tag {
+    display: inline-block;
+    font-size: 0.72rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 20px;
+    padding: 6px 14px;
+    border: 1px solid rgba(0,229,160,0.3);
+    border-radius: 100px;
+  }
+  .hero h1 {
+    font-family: var(--font-head);
+    font-size: clamp(2.4rem, 5vw, 4rem);
+    font-weight: 800;
+    line-height: 1.05;
+    letter-spacing: -0.03em;
+    margin-bottom: 20px;
+  }
+  .hero h1 span {
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .hero p {
+    color: var(--muted);
+    font-size: 0.95rem;
+    max-width: 480px;
+    margin: 0 auto;
+    line-height: 1.7;
+  }
+
+  /* ── Main Grid ─────────────────────────────────────────────────────── */
+  .main-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    animation: fadeUp 0.7s ease 0.2s both;
+  }
+
+  @media (max-width: 768px) {
+    .main-grid { grid-template-columns: 1fr; }
+  }
+
+  /* ── Card ──────────────────────────────────────────────────────────── */
+  .card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 28px;
+    backdrop-filter: blur(12px);
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+  }
+  .card:hover { border-color: rgba(0,229,160,0.2); box-shadow: var(--glow); }
+
+  .card-title {
+    font-family: var(--font-head);
+    font-size: 0.8rem;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 24px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .card-title::before {
+    content: '';
+    display: inline-block; width: 6px; height: 6px;
+    background: var(--accent);
+    border-radius: 50%;
+  }
+
+  /* ── Form Fields ───────────────────────────────────────────────────── */
+  .field { margin-bottom: 18px; }
+  .field label {
+    display: block;
+    font-size: 0.73rem;
+    color: var(--muted);
+    margin-bottom: 7px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+
+  .field input,
+  .field select {
+    width: 100%;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 11px 14px;
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 0.88rem;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    appearance: none;
+  }
+  .field input:focus,
+  .field select:focus {
+    border-color: rgba(0,229,160,0.5);
+    box-shadow: 0 0 0 3px rgba(0,229,160,0.08);
+  }
+  .field select option { background: #1a1d26; }
+
+  .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+  /* ── Slider ────────────────────────────────────────────────────────── */
+  .slider-wrap { display: flex; align-items: center; gap: 12px; }
+  .slider-wrap input[type=range] {
+    flex: 1; padding: 0;
+    height: 4px;
+    background: linear-gradient(to right, var(--accent) 0%, var(--border) 0%);
+    border-radius: 4px;
+    cursor: pointer;
+    border: none;
+    box-shadow: none;
+  }
+  .slider-wrap input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 16px; height: 16px;
+    border-radius: 50%;
+    background: var(--accent);
+    cursor: pointer;
+    border: 2px solid var(--bg);
+    box-shadow: 0 0 8px rgba(0,229,160,0.5);
+  }
+  .slider-val {
+    min-width: 36px;
+    text-align: right;
+    font-size: 0.88rem;
+    color: var(--accent);
+  }
+
+  /* ── Submit Button ─────────────────────────────────────────────────── */
+  .btn-predict {
+    width: 100%;
+    margin-top: 8px;
+    padding: 14px;
+    background: linear-gradient(135deg, var(--accent), #00c47a);
+    border: none;
+    border-radius: 10px;
+    color: #000;
+    font-family: var(--font-head);
+    font-size: 0.95rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    cursor: pointer;
+    transition: opacity 0.2s, transform 0.1s, box-shadow 0.2s;
+    position: relative; overflow: hidden;
+  }
+  .btn-predict:hover { opacity: 0.9; box-shadow: 0 0 24px rgba(0,229,160,0.4); }
+  .btn-predict:active { transform: scale(0.98); }
+  .btn-predict.loading { opacity: 0.6; pointer-events: none; }
+  .btn-predict.loading::after {
+    content: '';
+    position: absolute; right: 16px; top: 50%;
+    transform: translateY(-50%);
+    width: 16px; height: 16px;
+    border: 2px solid #000;
+    border-top-color: transparent;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+  }
+  @keyframes spin { to { transform: translateY(-50%) rotate(360deg); } }
+
+  /* ── Result Panel ──────────────────────────────────────────────────── */
+  .result-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 28px;
+    backdrop-filter: blur(12px);
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    min-height: 400px;
+  }
+
+  .result-empty {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    color: var(--muted);
+    text-align: center;
+  }
+  .result-empty .icon {
+    font-size: 2.5rem;
+    opacity: 0.3;
+    filter: grayscale(1);
+  }
+  .result-empty p { font-size: 0.82rem; line-height: 1.6; max-width: 200px; }
+
+  .result-main { display: none; }
+  .result-main.visible { display: block; animation: popIn 0.4s cubic-bezier(0.34,1.56,0.64,1) both; }
+
+  @keyframes popIn {
+    from { opacity:0; transform:scale(0.92) translateY(10px); }
+    to   { opacity:1; transform:scale(1) translateY(0); }
+  }
+
+  .price-display {
+    text-align: center;
+    padding: 28px 0 20px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 20px;
+  }
+  .price-label {
+    font-size: 0.72rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+  .price-value {
+    font-family: var(--font-head);
+    font-size: 3.5rem;
+    font-weight: 800;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    line-height: 1;
+    letter-spacing: -0.03em;
+  }
+  .price-currency {
+    font-size: 1.5rem;
+    vertical-align: super;
+    margin-right: 2px;
+  }
+  .price-level-badge {
+    display: inline-block;
+    margin-top: 12px;
+    font-size: 0.72rem;
+    padding: 4px 12px;
+    border-radius: 100px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    font-weight: 500;
+  }
+  .level-high   { background: rgba(255,107,53,0.15); color: var(--warn); border:1px solid rgba(255,107,53,0.3); }
+  .level-normal { background: rgba(0,229,160,0.12); color: var(--accent); border:1px solid rgba(0,229,160,0.3); }
+  .level-low    { background: rgba(0,94,255,0.12); color: var(--accent2); border:1px solid rgba(0,94,255,0.3); }
+
+  /* ── Stats Row ─────────────────────────────────────────────────────── */
+  .stats-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  .stat-box {
+    background: rgba(255,255,255,0.025);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px;
+    text-align: center;
+  }
+  .stat-box .s-val {
+    font-family: var(--font-head);
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--text);
+  }
+  .stat-box .s-lbl {
+    font-size: 0.65rem;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-top: 3px;
+  }
+
+  /* ── Breakdown ─────────────────────────────────────────────────────── */
+  .breakdown { display: flex; flex-direction: column; gap: 10px; }
+  .breakdown-title {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    margin-bottom: 4px;
+  }
+  .breakdown-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.83rem;
+  }
+  .breakdown-row .b-label { color: var(--muted); }
+  .breakdown-row .b-val   { color: var(--text); font-weight: 500; }
+  .breakdown-row .b-val.green { color: var(--accent); }
+  .breakdown-row .b-val.red   { color: var(--warn); }
+
+  /* ── Error ─────────────────────────────────────────────────────────── */
+  .error-msg {
+    display: none;
+    background: rgba(255,107,53,0.1);
+    border: 1px solid rgba(255,107,53,0.3);
+    border-radius: 8px;
+    padding: 12px 16px;
+    font-size: 0.82rem;
+    color: var(--warn);
+    margin-top: 12px;
+  }
+  .error-msg.visible { display: block; animation: fadeUp 0.3s ease; }
+
+  /* ── Footer ────────────────────────────────────────────────────────── */
+  footer {
+    text-align: center;
+    margin-top: 64px;
+    padding-top: 32px;
+    border-top: 1px solid var(--border);
+    color: var(--muted);
+    font-size: 0.75rem;
+    line-height: 1.8;
+    animation: fadeUp 0.7s ease 0.4s both;
+  }
+  footer strong { color: var(--text); }
+
+  /* ── Animations ────────────────────────────────────────────────────── */
+  @keyframes fadeDown {
+    from { opacity:0; transform:translateY(-16px); }
+    to   { opacity:1; transform:translateY(0); }
+  }
+  @keyframes fadeUp {
+    from { opacity:0; transform:translateY(16px); }
+    to   { opacity:1; transform:translateY(0); }
+  }
+
+  /* ── Demand meter ──────────────────────────────────────────────────── */
+  .meter-wrap { margin-bottom: 8px; }
+  .meter-bar-bg {
+    height: 6px; border-radius: 4px;
+    background: rgba(255,255,255,0.06);
+    overflow: hidden; margin-top: 4px;
+  }
+  .meter-bar-fill {
+    height: 100%; border-radius: 4px;
+    background: linear-gradient(90deg, var(--accent2), var(--accent));
+    width: 0%;
+    transition: width 1s cubic-bezier(0.4,0,0.2,1);
+  }
+  .meter-labels {
+    display: flex; justify-content: space-between;
+    font-size: 0.65rem; color: var(--muted); margin-top: 4px;
+  }
+</style>
+</head>
+<body>
+
+<div class="orb orb-1"></div>
+<div class="orb orb-2"></div>
+
+<div class="wrapper">
+
+  <!-- Header -->
+  <header>
+    <div class="logo">
+      <div class="logo-icon">⚡</div>
+      Smart<span class="logo-dot">Price</span>
+    </div>
+    <span class="badge">ML Engine v1.0</span>
+  </header>
+
+  <!-- Hero -->
+  <div class="hero">
+    <div class="hero-tag">Dynamic Pricing · Powered by XGBoost</div>
+    <h1>Price Smarter,<br /><span>Not Harder</span></h1>
+    <p>Feed in real-time demand signals and let the model calculate the optimal price in milliseconds.</p>
+  </div>
+
+  <!-- Main Grid -->
+  <div class="main-grid">
+
+    <!-- Left: Input Form -->
+    <div class="card">
+      <div class="card-title">Pricing Inputs</div>
+
+      <div class="field-row">
+        <div class="field">
+          <label>Riders Requesting</label>
+          <div class="slider-wrap">
+            <input type="range" id="riders" min="1" max="200" value="50"
+              oninput="updateSlider(this,'riders-val')" />
+            <span class="slider-val" id="riders-val">50</span>
+          </div>
+        </div>
+        <div class="field">
+          <label>Drivers Available</label>
+          <div class="slider-wrap">
+            <input type="range" id="drivers" min="1" max="200" value="30"
+              oninput="updateSlider(this,'drivers-val')" />
+            <span class="slider-val" id="drivers-val">30</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="field-row">
+        <div class="field">
+          <label>Past Rides</label>
+          <div class="slider-wrap">
+            <input type="range" id="past_rides" min="0" max="500" value="15"
+              oninput="updateSlider(this,'past-val')" />
+            <span class="slider-val" id="past-val">15</span>
+          </div>
+        </div>
+        <div class="field">
+          <label>Avg Rating</label>
+          <div class="slider-wrap">
+            <input type="range" id="rating" min="10" max="50" value="45"
+              oninput="updateSlider(this,'rating-val', 0.1)" />
+            <span class="slider-val" id="rating-val">4.5</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Expected Duration (min)</label>
+        <div class="slider-wrap">
+          <input type="range" id="duration" min="1" max="300" value="60"
+            oninput="updateSlider(this,'dur-val')" />
+          <span class="slider-val" id="dur-val">60</span>
+        </div>
+      </div>
+
+      <div class="field-row">
+        <div class="field">
+          <label>Location</label>
+          <select id="location">
+            <option value="Urban">Urban</option>
+            <option value="Suburban">Suburban</option>
+            <option value="Rural">Rural</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Time of Booking</label>
+          <select id="time_booking">
+            <option value="Morning">Morning</option>
+            <option value="Afternoon">Afternoon</option>
+            <option value="Evening" selected>Evening</option>
+            <option value="Night">Night</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="field-row">
+        <div class="field">
+          <label>Customer Loyalty</label>
+          <select id="loyalty">
+            <option value="Silver">Silver</option>
+            <option value="Regular" selected>Regular</option>
+            <option value="Gold">Gold</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Vehicle Type</label>
+          <select id="vehicle">
+            <option value="Economy" selected>Economy</option>
+            <option value="Premium">Premium</option>
+          </select>
+        </div>
+      </div>
+
+      <button class="btn-predict" id="predict-btn" onclick="predict()">
+        ⚡ Calculate Optimal Price
+      </button>
+      <div class="error-msg" id="error-msg"></div>
+    </div>
+
+    <!-- Right: Result -->
+    <div class="result-card" id="result-card">
+
+      <!-- Empty state -->
+      <div class="result-empty" id="result-empty">
+        <div class="icon">📊</div>
+        <p>Configure your inputs and hit the button to get a price prediction.</p>
+      </div>
+
+      <!-- Result -->
+      <div class="result-main" id="result-main">
+        <div class="card-title">Prediction Result</div>
+
+        <div class="price-display">
+          <div class="price-label">Optimal Price</div>
+          <div class="price-value">
+            <span class="price-currency">$</span><span id="price-num">0</span>
+          </div>
+          <div id="level-badge" class="price-level-badge level-normal">Normal</div>
+        </div>
+
+        <div class="stats-row">
+          <div class="stat-box">
+            <div class="s-val" id="stat-ratio">—</div>
+            <div class="s-lbl">D/S Ratio</div>
+          </div>
+          <div class="stat-box">
+            <div class="s-val" id="stat-conf">—</div>
+            <div class="s-lbl">Confidence</div>
+          </div>
+          <div class="stat-box">
+            <div class="s-val" id="stat-level">—</div>
+            <div class="s-lbl">Demand</div>
+          </div>
+        </div>
+
+        <div class="meter-wrap">
+          <div style="display:flex;justify-content:space-between;font-size:0.72rem;color:var(--muted);margin-bottom:4px;">
+            <span>Demand Pressure</span>
+            <span id="meter-pct">0%</span>
+          </div>
+          <div class="meter-bar-bg">
+            <div class="meter-bar-fill" id="meter-fill"></div>
+          </div>
+          <div class="meter-labels"><span>Low</span><span>High</span></div>
+        </div>
+
+        <div class="breakdown">
+          <div class="breakdown-title">Price Breakdown</div>
+          <div class="breakdown-row">
+            <span class="b-label">Base Estimate</span>
+            <span class="b-val" id="b-base">—</span>
+          </div>
+          <div class="breakdown-row">
+            <span class="b-label">Demand Surcharge</span>
+            <span class="b-val red" id="b-demand">—</span>
+          </div>
+          <div class="breakdown-row">
+            <span class="b-label">Loyalty Discount</span>
+            <span class="b-val green" id="b-loyalty">—</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer>
+    <strong>SmartPrice Engine</strong> · Dynamic Pricing via Machine Learning<br />
+    Dataset: <em>Dynamic Pricing Dataset — Kaggle</em> · Model: XGBoost Regressor
+  </footer>
+
+</div>
+
+<script>
+  // ── Slider helper ────────────────────────────────────────────────────────────
+  function updateSlider(el, valId, factor = 1) {
+    const val = parseFloat(el.value) * factor;
+    document.getElementById(valId).textContent =
+      factor < 1 ? val.toFixed(1) : val;
+
+    // Update fill gradient
+    const pct = ((el.value - el.min) / (el.max - el.min)) * 100;
+    el.style.background =
+      `linear-gradient(to right, var(--accent) ${pct}%, var(--border) ${pct}%)`;
+  }
+
+  // Initialize sliders on load
+  document.querySelectorAll('input[type=range]').forEach(el => {
+    const pct = ((el.value - el.min) / (el.max - el.min)) * 100;
+    el.style.background =
+      `linear-gradient(to right, var(--accent) ${pct}%, var(--border) ${pct}%)`;
+  });
+
+  // ── Counter animation ────────────────────────────────────────────────────────
+  function animateCount(el, target, duration = 800) {
+    const start = performance.now();
+    const from  = parseFloat(el.textContent) || 0;
+    function frame(now) {
+      const t = Math.min((now - start) / duration, 1);
+      const ease = 1 - Math.pow(1 - t, 3);
+      el.textContent = (from + (target - from) * ease).toFixed(2);
+      if (t < 1) requestAnimationFrame(frame);
+    }
+    requestAnimationFrame(frame);
+  }
+
+  // ── Predict ──────────────────────────────────────────────────────────────────
+  async function predict() {
+    const btn = document.getElementById('predict-btn');
+    const errEl = document.getElementById('error-msg');
+    errEl.classList.remove('visible');
+
+    btn.classList.add('loading');
+    btn.textContent = '  Calculating...';
+
+    const payload = {
+      number_of_riders: Number(document.getElementById('riders').value || 50),
+      number_of_drivers: Number(document.getElementById('drivers').value || 30),
+      number_of_past_rides: Number(document.getElementById('past_rides').value || 15),
+
+      average_ratings: Math.max(1, Math.min(5,
+        Number(document.getElementById('rating').value || 45) / 10
+      )),
+
+      expected_ride_duration: Number(document.getElementById('duration').value || 60),
+
+      location_category: document.getElementById('location').value || "Urban",
+      customer_loyalty_status: document.getElementById('loyalty').value || "Regular",
+      vehicle_type: document.getElementById('vehicle').value || "Economy",
+      time_of_booking: document.getElementById('time_booking').value || "Morning",
+
+      min_price: 10.0,
+      max_price: 600.0,
+      competitor_price: 0
+};
+
+    try {
+      const res  = await fetch('http://localhost:8000/predict', {
+
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.detail || 'Prediction failed');
+      }
+
+      const data = await res.json();
+      renderResult(data);
+
+    } catch (e) {
+      errEl.textContent = '⚠ ' + e.message;
+      errEl.classList.add('visible');
+    } finally {
+      btn.classList.remove('loading');
+      btn.textContent = '⚡ Calculate Optimal Price';
+    }
+  }
+
+  // ── Render result ────────────────────────────────────────────────────────────
+  function renderResult(data) {
+  document.getElementById('result-empty').style.display = 'none';
+  const main = document.getElementById('result-main');
+  main.classList.remove('visible');
+  void main.offsetWidth;
+  main.classList.add('visible');
+
+  // Price
+  const priceEl = document.getElementById('price-num');
+  animateCount(priceEl, data.optimal_price);
+
+  // Badge
+  const badge = document.getElementById('level-badge');
+  const ratio = data.demand_supply_ratio;
+  let txt, cls;
+  if (ratio > 2.5)      { txt = 'High Demand 🔥'; cls = 'level-high'; }
+  else if (ratio > 1.2) { txt = 'Normal ✓';       cls = 'level-normal'; }
+  else                  { txt = 'Low Demand ↓';   cls = 'level-low'; }
+  badge.textContent = txt;
+  badge.className   = 'price-level-badge ' + cls;
+
+  // Stats
+  document.getElementById('stat-ratio').textContent = data.demand_supply_ratio.toFixed(2);
+  document.getElementById('stat-conf').textContent  = data.uplift_pct + '%';
+  document.getElementById('stat-level').textContent = data.estimated_demand.toFixed(0);
+
+  // Meter
+  const pct = Math.min(ratio / 3 * 100, 100).toFixed(0);
+  document.getElementById('meter-pct').textContent = pct + '%';
+  setTimeout(() => {
+    document.getElementById('meter-fill').style.width = pct + '%';
+  }, 100);
+
+  // Breakdown
+  document.getElementById('b-base').textContent   = '$' + data.naive_price.toFixed(2);
+  document.getElementById('b-demand').textContent = '+$' + data.revenue_uplift.toFixed(2);
+  document.getElementById('b-loyalty').textContent = data.uplift_pct + '% uplift';
+}
+</script>

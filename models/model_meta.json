@@ -1,0 +1,66 @@
+{
+  "model_type": "XGBoost",
+  "features": [
+    "Number_of_Riders",
+    "Number_of_Drivers",
+    "Number_of_Past_Rides",
+    "Average_Ratings",
+    "Expected_Ride_Duration",
+    "loyalty_encoded",
+    "location_encoded",
+    "vehicle_encoded",
+    "time_encoded",
+    "demand_supply_ratio",
+    "riders_per_duration",
+    "drivers_per_duration",
+    "rating_loyalty",
+    "rating_duration",
+    "high_demand",
+    "peak_high_demand",
+    "experience_score"
+  ],
+  "target": "log1p(Historical_Cost_of_Ride)",
+  "inverse": "expm1",
+  "metrics": {
+    "MAE": 53.51,
+    "RMSE": 70.58,
+    "R2": 0.8634,
+    "MAPE": 14.37,
+    "CV_R2": 0.9342,
+    "CV_std": 0.0082
+  },
+  "baseline_r2": 0.8371,
+  "improvement": 0.0263,
+  "best_params": {
+    "n_estimators": 760,
+    "max_depth": 3,
+    "learning_rate": 0.012117930260110862,
+    "subsample": 0.6264972097813375,
+    "colsample_bytree": 0.9749668509504598,
+    "min_child_weight": 4,
+    "gamma": 0.05452178557079468,
+    "reg_alpha": 0.4642377336482417,
+    "reg_lambda": 1.824832891051131
+  },
+  "demand_model": {
+    "type": "XGBRegressor",
+    "features": [
+      "Number_of_Drivers",
+      "location_encoded",
+      "vehicle_encoded",
+      "time_encoded",
+      "Average_Ratings",
+      "Expected_Ride_Duration",
+      "loyalty_encoded",
+      "Number_of_Past_Rides"
+    ],
+    "target": "Number_of_Riders",
+    "MAE": 15.89,
+    "R2": 0.3852
+  },
+  "optimization": {
+    "method": "price_sweep + revenue_maximization",
+    "revenue_formula": "price * base_riders * exp(-sensitivity * price)",
+    "price_sensitivity": 0.008
+  }
+}
